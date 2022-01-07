@@ -112,7 +112,9 @@ def cleaning(text):
 
 #Application sur notre texte
 text = cleaning(text)
-text = text.split(", ")#transformation en liste pour la suite
+text= text.split(", ")#transformation en liste pour la suite
+print(text)
+
 
 
 
