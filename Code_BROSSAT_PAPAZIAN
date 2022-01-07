@@ -8,7 +8,6 @@ import pandas as pd
 import numpy as np
 
 #tweeter
-
 import tweepy
 
 #Nettoyage du texte
@@ -28,8 +27,6 @@ from collections import Counter
 from collections import defaultdict
 
 #Visualisation du graphe de coocurrence
-
-
 import networkx as nx
 from pyvis.network import Network
 
