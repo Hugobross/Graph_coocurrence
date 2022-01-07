@@ -1,0 +1,181 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# =============== Import des librairies=============
+
+#Sur l'ensemble du programme
+import pandas as pd
+import numpy as np
+
+#tweeter
+
+import tweepy
+
+#Nettoyage du texte
+import re
+import nltk
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.corpus import wordnet 
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('stopwords')
+
+#Nombre d'occurrences des mots
+from collections import Counter
+
+#Matrice de coocurrence
+from collections import defaultdict
+
+#Visualisation du graphe de coocurrence
+
+
+import networkx as nx
+from pyvis.network import Network
+
+
+
+# =============== PARTIE 1 =============
+# =============== Extraction des données de Tweeter ===============
+
+#authentification
+consumer = "Q0syYkZMSXpRcGhOb0FuUzZUdVU6MTpjaQ"
+consumer_secret = "KtpXZXxiqOnZ4f4j4i_y_ubj0NUsy-brU_XEJqJNPd082jLGuS"
+access_token = "1478301550007263234-ObSvgjBnNG34X1BNVyHHoc5CKoQvMD"
+access_token_secret = "6qAxM3nBHDI9eObCYsv6wTOJF2BqrHuVJyanUaOPi43s2"
+
+
+#Requete
+client = tweepy.Client(bearer_token='AAAAAAAAAAAAAAAAAAAAANUKXwEAAAAARCmsxykJivgjjRP%2B%2FXuCK5QfjlM%3DCq2PQjGDgxtPSXcZFcJBEu2XXD5IqR0kytiUmh3ypUWBuPwsrv')
+query = ["netflix lang : fr -is:retweet -is:reply"]
+max_results=100
+tweets = client.search_recent_tweets(query, max_results=50)
+
+#Récupération du texte
+text = []
+for tweet in tweets.data:
+        text.append(tweet.text)
+        
+print(text)    
+
+
+# =============== PARTIE 2 =============
+# =============== Nettoyage du texte ===============
+
+# fonctions pour regrouper les mots ayant la même racine, elles sont utilisées dans la fonction "cleaning"
+def get_lemma(word):
+    lemma = wordnet.morphy(word)
+    if lemma is None:
+        return word
+    else:
+        return lemma
+    
+from nltk.stem.wordnet import WordNetLemmatizer
+
+def get_lemma2(word):
+    return WordNetLemmatizer().lemmatize(word)
+
+
+
+#nettoyage du texte extrait de twitter
+
+def cleaning(text):
+    
+    text = str(text)
+    text = "".join(text)
+    text = text.lower()#minuscule
+    characters = """[!?'".<>();'':\+-{}@%&*#/[/]"""
+    text = ''.join( x for x in text if x not in characters)#caractères spéciaux
+    text = re.sub(r'http\S+', '', text)#url
+    emoji = re.compile("["
+        u"\U0001F600-\U0001F64F"  # emoticons
+        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+        u"\U0001F680-\U0001F6FF"  # transport & map symbols
+        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                           "]+", flags=re.UNICODE)
+    text = emoji.sub(r'', text) # no emoji
+    
+    # removing the stop - words
+    STOP_WORDS = stopwords.words()
+    text_tokens = word_tokenize(text)
+    tokens_without_sw = [
+     word
+     for word in text_tokens
+     if not word in STOP_WORDS
+    ]
+    tokens_without_sw = [get_lemma(token) for token in tokens_without_sw]
+    tokens_without_sw = [get_lemma2(token) for token in tokens_without_sw]
+
+    filtered_sentence = (" ").join(tokens_without_sw)
+    text = filtered_sentence
+    return text
+
+#Application sur notre texte
+text = cleaning(text)
+text = text.split(", ")#transformation en liste pour la suite
+
+
+
+#Aperçu des mots les plus utilisés dans notre texte
+word_count = Counter(" ".join(text).split()).most_common(20)
+word_frequency = pd.DataFrame(word_count, columns = ['Word', 'Frequency'])
+print(word_frequency)
+
+
+
+# =============== PARTIE 3 =============
+# =============== Matrice de coocurrence ===============
+
+#Fonction permettant la création de la matrice de coocurrence
+
+def co_occurrence(sentences, window_size):
+    d = defaultdict(int)
+    vocab = set()
+    for text in sentences:
+        # preprocessing (use tokenizer instead)
+        text = text.lower().split()
+        # iterate over sentences
+        for i in range(len(text)):
+            token = text[i]
+            vocab.add(token)  # add to vocab
+            next_token = text[i+1 : i+1+window_size]
+            for t in next_token:
+                key = tuple( sorted([t, token]) )
+                d[key] += 1
+    
+    # formulate the dictionary into dataframe
+    vocab = sorted(vocab) # sort vocab
+    df = pd.DataFrame(data=np.zeros((len(vocab), len(vocab)), dtype=np.int16),
+                      index=vocab,
+                      columns=vocab)
+    for key, value in d.items():
+        df.at[key[0], key[1]] = value
+        df.at[key[1], key[0]] = value
+    return df
+
+
+
+#Application sur notre texte
+mots = " ".join(text).split()
+w = len(mots)  
+    
+MC = co_occurrence(text, w)
+print(MC)
+
+
+# =============== PARTIE 4 =============
+# =============== Création et visualisation du graphe de coocurrence===============
+
+#retourne un graphe de notre matrice
+G = nx.from_pandas_adjacency(MC)
+
+# visualisation avec pyvis et la classe "Network"
+N = Network(height='100%', width='100%', bgcolor='black', font_color='white',heading="Graph de co-occurence - Tweets en rapport avec Netflix")
+
+N.barnes_hut()
+for n in G.nodes:
+    N.add_node(str(n), label=n) #Cette méthode ajoute un nœud au graphe
+for e in G.edges:
+    N.add_edge(str(e[0]), str(e[1])) #Cette méthode sert à ajouter plusieurs arêtes entre les nœuds existants
+
+N.write_html('./TweetsNetflix-graph.html')#extraction en html
