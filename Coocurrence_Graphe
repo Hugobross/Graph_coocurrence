@@ -47,8 +47,8 @@ access_token_secret = "6qAxM3nBHDI9eObCYsv6wTOJF2BqrHuVJyanUaOPi43s2"
 
 #Requete
 client = tweepy.Client(bearer_token='AAAAAAAAAAAAAAAAAAAAANUKXwEAAAAARCmsxykJivgjjRP%2B%2FXuCK5QfjlM%3DCq2PQjGDgxtPSXcZFcJBEu2XXD5IqR0kytiUmh3ypUWBuPwsrv')
-query = ["netflix lang : fr -is:retweet -is:reply"]
-max_results=100
+query = ["netflix lang : fr -is:retweet -is:reply"] #nous cherchons des tweets français, pas compris dans les retweets et les reply.
+
 tweets = client.search_recent_tweets(query, max_results=50)
 
 #Récupération du texte
